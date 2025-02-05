@@ -1,0 +1,76 @@
+services:
+  app:
+    image: php:8.1-fpm
+    container_name: laravel_app
+    volumes:
+      - ./app:/var/www/html
+    networks:
+      - app_network
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=laravel
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=secret
+      - CACHE_DRIVER=redis
+      - SESSION_DRIVER=redis
+    depends_on:
+      - postgres
+      - elasticsearch
+    ports:
+      - "8000:80"
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_DB: laravel
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    networks:
+      - app_network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.2.0
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+    ports:
+      - "9200:9200"
+    networks:
+      - app_network
+
+  graphql:
+    image: node:16
+    container_name: graphql
+    working_dir: /app
+    volumes:
+      - ./graphql:/app
+    command: npm run dev
+    networks:
+      - app_network
+    ports:
+      - "4000:4000"
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    networks:
+      - app_network
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"  # Disables the setup wizard
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
+    driver: local
+
+networks:
+  app_network:
+    driver: bridge
